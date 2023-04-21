@@ -3,6 +3,7 @@ package gateway
 import (
 	"net/http"
 
+	"github.com/fullstorydev/grpchan/inprocgrpc"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/valyala/fasthttp"
 	"google.golang.org/grpc"
@@ -63,4 +64,12 @@ func NewGateWay(config *Config) *GateWay {
 
 func (g *GateWay) GRPC() grpc.ServiceRegistrar {
 	return g.GateWayGRPC.GRPC()
+}
+
+func (g *GateWay) MuxGRPC() *runtime.ServeMux {
+	return g.muxGRPC
+}
+
+func (g *GateWay) ServerInproc() *inprocgrpc.Channel {
+	return g.serverInproc
 }

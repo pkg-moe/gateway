@@ -85,7 +85,7 @@ func (g *GateWayGRPC) GRPC() grpc.ServiceRegistrar {
 	return g.serverHandlers
 }
 
-func (g *GateWayGRPC) Register(client interface{}, gateway interface{}) {
+func (g *GateWayGRPC) Register(f gm.IRegister) {
 
 }
 

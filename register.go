@@ -3,29 +3,30 @@ package gateway
 import (
 	"context"
 	"log"
-	"reflect"
 
 	"pkg.moe/pkg/gateway/model"
+
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc"
 )
 
-func (g *GateWay) Register(client interface{}, gateway interface{}) {
-	ctxValue := reflect.ValueOf(context.Background())
+func Register[T, V any](service V, server func(s grpc.ServiceRegistrar, srv V), client func(cc grpc.ClientConnInterface) T, gateway func(ctx context.Context, mux *runtime.ServeMux, client T) error) gm.IRegister {
+	return func(g gm.IGateWayRegister) error {
+		server(g.GRPC(), service)
 
-	clientFunc := reflect.ValueOf(client)
-	gatewayFunc := reflect.ValueOf(gateway)
+		ctx := context.Background()
 
-	clientResult := clientFunc.Call([]reflect.Value{
-		reflect.ValueOf(g.serverInproc),
-	})
+		c := client(g.ServerInproc())
+		if err := gateway(ctx, g.MuxGRPC(), c); err != nil {
+			return err
+		}
 
-	gatewayResult := gatewayFunc.Call([]reflect.Value{
-		ctxValue, reflect.ValueOf(g.muxGRPC), clientResult[0],
-	})
+		return nil
+	}
+}
 
-	err := gatewayResult[0].Interface()
-
-	switch err.(type) {
-	case error:
+func (g *GateWay) Register(f gm.IRegister) {
+	if err := f(g); err != nil {
 		log.Fatalf("register gateway error: %v", err)
 	}
 }
