@@ -1,12 +1,14 @@
 package gateway
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/rs/cors"
-	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpadaptor"
+
+	"pkg.moe/pkg/gateway/grpc_websocket"
 )
 
 func (g *GateWay) Start() error {
@@ -26,7 +28,7 @@ func (g *GateWay) Start() error {
 	// http server
 	log.Printf("Starting http	server on %s\n", g.config.PortHttp)
 	//g.muxHttp.Handle("/api/", gziphandler.GzipHandler(g.httpXor(g.httpReqGzip(g.muxGRPC))))
-	g.muxHttp.Handle("/api/", g.httpXor(g.muxGRPC))
+	g.muxHttp.Handle("/api/", g.httpXor(grpc_websocket.WebsocketProxy(g.muxGRPC)))
 
 	// set cors
 	c := cors.New(cors.Options{
@@ -36,21 +38,18 @@ func (g *GateWay) Start() error {
 		AllowCredentials: true,
 	})
 
-	fastHandler := fasthttpadaptor.NewFastHTTPHandler(c.Handler(g.muxHttp))
-
-	g.serverHttp = &fasthttp.Server{
-		Handler: func(ctx *fasthttp.RequestCtx) {
-			fastHandler(ctx)
-		},
+	g.serverHttp = &http.Server{
+		Addr:    fmt.Sprintf("0.0.0.0:%s", g.config.PortHttp),
+		Handler: c.Handler(g.muxHttp),
 	}
 
-	return g.serverHttp.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", g.config.PortHttp))
+	return g.serverHttp.ListenAndServe()
 }
 
 func (g *GateWay) Stop() {
 	// stop http server
 	{
-		if err := g.serverHttp.Shutdown(); err != nil {
+		if err := g.serverHttp.Shutdown(context.TODO()); err != nil {
 			log.Fatalf("http service Shutdown error: %v", err)
 		}
 	}

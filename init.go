@@ -5,9 +5,10 @@ import (
 
 	"github.com/fullstorydev/grpchan/inprocgrpc"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/valyala/fasthttp"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip"
+
+	"pkg.moe/pkg/gateway/grpc_websocket"
 )
 
 type GateWay struct {
@@ -16,7 +17,7 @@ type GateWay struct {
 
 	config *Config
 
-	serverHttp *fasthttp.Server
+	serverHttp *http.Server
 
 	muxHttp *http.ServeMux
 	muxGRPC *runtime.ServeMux
@@ -42,6 +43,7 @@ func NewGateWay(config *Config) *GateWay {
 
 	// proto raw marshaler
 	protoRaw := &runtime.ProtoMarshaller{}
+	websocketRaw := &grpc_websocket.WebsocketMarshaller{}
 
 	// mux grpc
 	g.muxGRPC = runtime.NewServeMux(
@@ -50,6 +52,7 @@ func NewGateWay(config *Config) *GateWay {
 
 		// register proto raw
 		runtime.WithMarshalerOption(protoRaw.ContentType(1), protoRaw),
+		runtime.WithMarshalerOption(websocketRaw.ContentType(1), websocketRaw),
 	)
 
 	// mux http
