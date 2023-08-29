@@ -28,7 +28,7 @@ func (g *GateWay) Start() error {
 	// http server
 	log.Printf("Starting http	server on %s\n", g.config.PortHttp)
 	//g.muxHttp.Handle("/api/", gziphandler.GzipHandler(g.httpXor(g.httpReqGzip(g.muxGRPC))))
-	g.muxHttp.Handle("/api/", g.httpXor(grpc_websocket.WebsocketProxy(g.muxGRPC)))
+	g.muxHttp.Handle("/api/", g.httpXor(grpc_websocket.WebsocketProxy(g.muxGRPC, grpc_websocket.WithMaxRespBodyBufferSize(4*1024*1024))))
 
 	// set cors
 	c := cors.New(cors.Options{

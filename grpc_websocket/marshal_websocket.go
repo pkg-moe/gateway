@@ -1,6 +1,7 @@
 package grpc_websocket
 
 import (
+	//"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -39,6 +40,7 @@ func (*WebsocketMarshaller) Marshal(value interface{}) ([]byte, error) {
 	binary.BigEndian.PutUint32(l, uint32(len(buffer)))
 
 	body := append([]byte{0b00000000}, append(l, buffer...)...)
+	body = append(body, []byte{0b11111111, 0b10000000, 0b11111111, 0b10000000, 0b11111111, 0b10000001}...)
 
 	return body, nil
 }

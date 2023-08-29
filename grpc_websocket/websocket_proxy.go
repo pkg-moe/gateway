@@ -2,6 +2,8 @@ package grpc_websocket
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net/http"
@@ -240,6 +242,13 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			logger.Get().Debugln("[read] read payload:", string(payload), payload)
+
+			// 0b10000000, 0x00, 0x00, 0x00, 0x00
+			if len(payload) == 5 && payload[0] == 0b10000000 && payload[1] == 0x00 && payload[2] == 0x00 && payload[3] == 0x00 && payload[4] == 0x00 {
+				logger.Get().Warnln("[read] client closed conn")
+				return
+			}
+
 			logger.Get().Debugln("[read] writing to requestBody:")
 			n, err := requestBodyW.Write(payload)
 			//requestBodyW.Write([]byte("\n"))
@@ -275,6 +284,23 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 	// write loop -- take messages from response and write to websocket
 	scanner := bufio.NewScanner(responseBodyR)
 
+	sep := []byte{0b11111111, 0b10000000, 0b11111111, 0b10000000, 0b11111111, 0b10000001}
+	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, nil
+		}
+
+		if i := bytes.Index(data, sep); i >= 0 {
+			return i + len(sep), data[0:i], nil
+		}
+
+		if atEOF {
+			return len(data), data, nil
+		}
+
+		return 0, nil, nil
+	})
+
 	// if maxRespBodyBufferSize has been specified, use custom buffer for scanner
 	var scannerBuf []byte
 	if p.maxRespBodyBufferBytes > 0 {
@@ -289,15 +315,61 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var writer io.WriteCloser
+	var needSendCount uint32
+	var sendCount uint32
+	var sendBuffer = make([]byte, 0, 400000)
+	var recvCount uint32
+
 	for scanner.Scan() {
-		if len(scanner.Bytes()) == 0 {
-			logger.Get().Warnln("[write] empty scan", scanner.Err())
-			continue
+		data := scanner.Bytes()
+		if len(data) != 0 {
+			sendBuffer = append(sendBuffer, data...)
+			recvCount += uint32(len(data))
 		}
-		logger.Get().Debugln("[write] scanned", scanner.Text(), scanner.Bytes())
-		if err = conn.WriteMessage(websocket.BinaryMessage, scanner.Bytes()); err != nil {
-			logger.Get().Warnln("[write] error writing websocket message:", err)
-			return
+
+		if len(sendBuffer) > 0 && (sendBuffer[0] == 0b00000000 || (len(sendBuffer) > 1 && sendBuffer[0] == '\n' && sendBuffer[1] == 0b00000000)) && sendCount == 0 {
+			if sendBuffer[0] == '\n' {
+				sendBuffer = sendBuffer[1:]
+				recvCount -= 1
+			}
+
+			if len(sendBuffer) < 5 {
+				logger.Get().Warnln("[write] invalid message", sendBuffer)
+				continue
+			}
+
+			needSendCount = binary.BigEndian.Uint32([]byte{sendBuffer[1], sendBuffer[2], sendBuffer[3], sendBuffer[4]}) + 5
+			fmt.Printf("new head sendBuffer: %v, needSendCount: %d\n", sendBuffer[0:5], needSendCount)
+
+			writer, err = conn.NextWriter(websocket.BinaryMessage)
+			if err != nil {
+				logger.Get().Warnln("[write] error writing websocket message:", err)
+				return
+			}
+		}
+
+		if recvCount >= needSendCount-sendCount {
+			tempBuffer := sendBuffer[0 : needSendCount-sendCount]
+			sendBuffer = sendBuffer[needSendCount-sendCount:]
+			recvCount -= needSendCount - sendCount
+			writer.Write(tempBuffer)
+			sendCount += uint32(len(tempBuffer))
+		} else {
+			if recvCount != 0 {
+				tempBuffer := sendBuffer[0:recvCount]
+				sendBuffer = sendBuffer[recvCount:]
+				recvCount -= recvCount
+				writer.Write(tempBuffer)
+				sendCount += uint32(len(tempBuffer))
+			}
+		}
+
+		fmt.Printf("sendCount: %d, needSendCount: %d, recvCount: %d\n", sendCount, needSendCount, recvCount)
+
+		if sendCount == needSendCount {
+			writer.Close()
+			sendCount = 0
 		}
 	}
 	if err := scanner.Err(); err != nil {
