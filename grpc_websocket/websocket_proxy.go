@@ -340,7 +340,7 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 			}
 
 			needSendCount = binary.BigEndian.Uint32([]byte{sendBuffer[1], sendBuffer[2], sendBuffer[3], sendBuffer[4]}) + 5
-			fmt.Printf("new head sendBuffer: %v, needSendCount: %d\n", sendBuffer[0:5], needSendCount)
+			logger.Get().Debugf("new head sendBuffer: %v, needSendCount: %d\n", sendBuffer[0:5], needSendCount)
 
 			writer, err = conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
@@ -365,7 +365,7 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		fmt.Printf("sendCount: %d, needSendCount: %d, recvCount: %d\n", sendCount, needSendCount, recvCount)
+		logger.Get().Debugf("sendCount: %d, needSendCount: %d, recvCount: %d\n", sendCount, needSendCount, recvCount)
 
 		if sendCount == needSendCount {
 			writer.Close()
