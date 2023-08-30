@@ -370,6 +370,7 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 		if sendCount == needSendCount {
 			writer.Close()
 			sendCount = 0
+			needSendCount = 0
 		}
 	}
 	if err := scanner.Err(); err != nil {
