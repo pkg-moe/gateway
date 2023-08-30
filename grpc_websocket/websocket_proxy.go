@@ -340,7 +340,7 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 			}
 
 			needSendCount = binary.BigEndian.Uint32([]byte{sendBuffer[1], sendBuffer[2], sendBuffer[3], sendBuffer[4]}) + 5
-			logger.Get().Debugf("new head sendBuffer: %v, needSendCount: %d\n", sendBuffer[0:5], needSendCount)
+			logger.Get().Debugf("new head sendBuffer: %v, needSendCount: %d", sendBuffer[0:5], needSendCount)
 
 			writer, err = conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
@@ -349,23 +349,25 @@ func (p *Proxy) proxy(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if recvCount >= needSendCount-sendCount {
-			tempBuffer := sendBuffer[0 : needSendCount-sendCount]
-			sendBuffer = sendBuffer[needSendCount-sendCount:]
-			recvCount -= needSendCount - sendCount
-			writer.Write(tempBuffer)
-			sendCount += uint32(len(tempBuffer))
-		} else {
-			if recvCount != 0 {
-				tempBuffer := sendBuffer[0:recvCount]
-				sendBuffer = sendBuffer[recvCount:]
-				recvCount -= recvCount
+		if needSendCount-sendCount > 0 {
+			if recvCount >= needSendCount-sendCount {
+				tempBuffer := sendBuffer[0 : needSendCount-sendCount]
+				sendBuffer = sendBuffer[needSendCount-sendCount:]
+				recvCount -= needSendCount - sendCount
 				writer.Write(tempBuffer)
 				sendCount += uint32(len(tempBuffer))
+			} else {
+				if recvCount != 0 {
+					tempBuffer := sendBuffer[0:recvCount]
+					sendBuffer = sendBuffer[recvCount:]
+					recvCount -= recvCount
+					writer.Write(tempBuffer)
+					sendCount += uint32(len(tempBuffer))
+				}
 			}
 		}
 
-		logger.Get().Debugf("sendCount: %d, needSendCount: %d, recvCount: %d\n", sendCount, needSendCount, recvCount)
+		logger.Get().Debugf("sendCount: %d, needSendCount: %d, recvCount: %d", sendCount, needSendCount, recvCount)
 
 		if sendCount == needSendCount {
 			writer.Close()
