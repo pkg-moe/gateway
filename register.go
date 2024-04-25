@@ -16,7 +16,12 @@ func Register[T, V any](service V, server func(s grpc.ServiceRegistrar, srv V), 
 
 		ctx := context.Background()
 
-		c := client(g.ServerInproc())
+		in := g.ServerInproc()
+		if in == nil {
+			return nil
+		}
+
+		c := client(in)
 		if err := gateway(ctx, g.MuxGRPC(), c); err != nil {
 			return err
 		}
