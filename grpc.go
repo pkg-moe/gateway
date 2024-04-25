@@ -10,6 +10,7 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -81,12 +82,22 @@ func NewGateWayGRPC(configGRPC *ConfigGRPC) *GateWayGRPC {
 	return g
 }
 
+func (g *GateWayGRPC) MuxGRPC() *runtime.ServeMux {
+	return nil
+}
+
+func (g *GateWayGRPC) ServerInproc() *inprocgrpc.Channel {
+	return nil
+}
+
 func (g *GateWayGRPC) GRPC() grpc.ServiceRegistrar {
 	return g.serverHandlers
 }
 
 func (g *GateWayGRPC) Register(f gm.IRegister) {
-
+	if err := f(g); err != nil {
+		log.Fatalf("register gateway error: %v", err)
+	}
 }
 
 func (g *GateWayGRPC) Serve(service ...gm.IService) {
@@ -119,4 +130,12 @@ func (g *GateWayGRPC) Start() error {
 func (g *GateWayGRPC) Stop() {
 	// stop grpc server
 	g.serverGRPC.Stop()
+}
+
+func RegisterGRPC[V any](service V, server func(s grpc.ServiceRegistrar, srv V)) gm.IRegister {
+	return func(g gm.IGateWayRegister) error {
+		server(g.GRPC(), service)
+
+		return nil
+	}
 }
