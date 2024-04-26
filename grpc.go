@@ -27,6 +27,8 @@ type ConfigGRPC struct {
 	// interceptor
 	StreamInterceptor []grpc.StreamServerInterceptor
 	UnaryInterceptor  []grpc.UnaryServerInterceptor
+
+	ServerOption []grpc.ServerOption
 }
 
 type GateWayGRPC struct {
@@ -66,6 +68,7 @@ func NewGateWayGRPC(configGRPC *ConfigGRPC) *GateWayGRPC {
 	serverOption := []grpc.ServerOption{}
 	serverOption = append(serverOption, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamServerInterceptor...)))
 	serverOption = append(serverOption, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryServerInterceptor...)))
+	serverOption = append(serverOption, configGRPC.ServerOption...)
 
 	// handler map
 	g.serverHandlers = grpchan.HandlerMap{}
