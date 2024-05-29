@@ -1,6 +1,6 @@
 module pkg.moe/pkg/gateway
 
-go 1.20
+go 1.22
 
 require (
 	github.com/fullstorydev/grpchan v1.1.1

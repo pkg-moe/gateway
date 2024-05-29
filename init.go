@@ -7,6 +7,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"pkg.moe/pkg/gateway/grpc_websocket"
 )
@@ -53,6 +54,9 @@ func NewGateWay(config *Config) *GateWay {
 		// register proto raw
 		runtime.WithMarshalerOption(protoRaw.ContentType(1), protoRaw),
 		runtime.WithMarshalerOption(websocketRaw.ContentType(1), websocketRaw),
+
+		// health check
+		runtime.WithHealthzEndpoint(grpc_health_v1.NewHealthClient(g.serverInproc)),
 	)
 
 	// mux http

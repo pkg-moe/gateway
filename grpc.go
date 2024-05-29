@@ -13,6 +13,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 
 	"pkg.moe/pkg/logger"
@@ -81,6 +83,9 @@ func NewGateWayGRPC(configGRPC *ConfigGRPC) *GateWayGRPC {
 	g.serverInproc.WithServerUnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryServerInterceptor...)).WithServerStreamInterceptor(grpc_middleware.ChainStreamServer(streamServerInterceptor...))
 
 	grpc_prometheus.Register(g.serverGRPC)
+
+	// health check
+	grpc_health_v1.RegisterHealthServer(g.serverHandlers, health.NewServer())
 
 	return g
 }
