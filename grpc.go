@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"runtime/debug"
 
 	"github.com/fullstorydev/grpchan"
 	"github.com/fullstorydev/grpchan/inprocgrpc"
