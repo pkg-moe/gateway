@@ -46,7 +46,7 @@ func NewGateWayGRPC(configGRPC *ConfigGRPC) *GateWayGRPC {
 
 	// panic error
 	grpcPanicError := func(p interface{}) (err error) {
-		logger.Get().Error("request panic", logger.FieldError(err), logger.Field("p", p))
+		logger.Get().Error("request panic", logger.FieldError(err), logger.Field("p", p), logger.Field("stack", string(debug.Stack())))
 		return status.Errorf(codes.Internal, "%s", p)
 	}
 
